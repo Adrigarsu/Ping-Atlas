@@ -1,0 +1,92 @@
+# ── GeoIP (never commit) ────────────────────────────────────────────────────
+*.mmdb
+GeoLite2-*.tar.gz
+
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Ruff / Black
+.ruff_cache/
+
+# pytest
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# mypy / type checkers
+.mypy_cache/
+.dmypy.json
+
+# ── Alembic ─────────────────────────────────────────────────────────────────
+# Keep migrations tracked; ignore only generated .pyc inside them
+backend/alembic/versions/__pycache__/
+
+# ── Node / Frontend ─────────────────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/.playwright/
+
+# ── Docker ──────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+docker-compose.local.yml
+
+# Docker volumes persisted locally
+postgres-data/
+timescale-data/
+
+# ── Environment / secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ── IDE / Editor ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
