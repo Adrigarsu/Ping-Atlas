@@ -22,7 +22,10 @@
 - Tests: pytest for backend (mock Scapy, no real ICMP), Playwright for E2E
 - Run tests with coverage: `docker compose run --rm api pytest tests/ -v --cov=app/probe --cov-report=term-missing --cov-fail-under=80`
 - probe/ package is at 100% coverage — maintain ≥80% on every PR
-- CI: .github/workflows/ci.yml — jobs: lint (ruff + eslint), test-backend, build; triggers on push/PR to main
+- CI: .github/workflows/ci.yml — jobs: lint (ruff + eslint), test-backend, build, test-e2e; triggers on push/PR to main
+- E2E: frontend/e2e/probe.spec.ts — two Playwright tests: (1) select target → .leaflet-interactive appears on map (route mocked for CI, no GeoIP); (2) switch targets → recharts-surface updates
+- npm run test:e2e — runs Playwright against http://localhost (full Docker Compose stack must be up)
+- API_KEYS auth is optional: if API_KEYS env var is unset/empty, all POST /probe requests are allowed (useful for E2E and local dev without keys)
 
 ## Architecture
 - backend/app/probe/ — Scapy ICMP engine + GeoIP wrapper (CAP_NET_RAW required)
