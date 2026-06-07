@@ -23,6 +23,7 @@
 
 ## Architecture
 - backend/app/probe/ — Scapy ICMP engine + GeoIP wrapper (CAP_NET_RAW required)
+- backend/app/probe/icmp_probe.py — ping(host, count, timeout) → list[float | None]
 - backend/app/api/  — FastAPI routers
 - backend/app/db/   — SQLAlchemy models + Alembic migrations
 - backend/app/db/session.py — async engine + AsyncSessionLocal
