@@ -45,11 +45,12 @@ test.describe('core user flows', () => {
     // The mocked route triggers a vector layer (path or circle) in the leaflet overlay pane
     await expect(page.locator('.leaflet-overlay-pane .leaflet-interactive').first()).toBeVisible()
 
-    // Trigger an on-demand probe via the UI button
+    // Trigger on-demand probe: verify the request is sent when the button is clicked
+    const probeRequest = page.waitForRequest(
+      (req) => req.url().includes('/api/probe') && req.method() === 'POST',
+    )
     await page.getByRole('button', { name: `Probe ${HOST_A}` }).click()
-
-    // The button should remain (not disappear or error)
-    await expect(page.getByRole('button', { name: /Probe/ })).toBeVisible()
+    await probeRequest // resolves when request is dispatched, not when traceroute finishes
   })
 
   test('selecting a different target updates the latency chart', async ({ page }) => {
