@@ -31,7 +31,8 @@
 - backend/app/probe/geoip.py — init() loads mmdb at startup; resolve(ip) → GeoResult(lat, lon, country, city)
 - backend/app/api/  — FastAPI routers
 - backend/app/api/schemas.py — Pydantic request/response models (ProbeRequest, ProbeOut, HopOut, PaginatedProbes)
-- backend/app/api/probes.py — POST /probe (202) and GET /results (paginated)
+- backend/app/api/probes.py — POST /probe (202), GET /results (paginated), GET /routes/{target_id}
+- GET /routes/{target_id} returns latest traceroute as [[lat,lon],...] excluding null-coord hops; 404 if target missing
 - backend/app/db/   — SQLAlchemy models + Alembic migrations
 - backend/app/db/session.py — async engine + AsyncSessionLocal
 - backend/app/db/migrations/ — Alembic env + versioned migration scripts
