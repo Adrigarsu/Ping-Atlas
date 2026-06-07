@@ -1,11 +1,17 @@
 import 'leaflet/dist/leaflet.css'
 import { useMemo } from 'react'
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer } from 'react-leaflet'
+import { useRoute } from '../hooks/useRoute'
 import { type HopMessage, useWebSocket } from '../hooks/useWebSocket'
 
 const INITIAL_CENTER: [number, number] = [20, 0]
 const INITIAL_ZOOM = 2
 const WS_URL = `ws://${window.location.host}/live`
+
+interface Props {
+  selectedTargetId: string | null
+  refreshSignal: number
+}
 
 function rttColor(rtt: number | null): string {
   if (rtt === null) return '#9ca3af'
@@ -24,8 +30,9 @@ function groupByProbe(hops: HopMessage[]): Map<string, HopMessage[]> {
   return groups
 }
 
-export default function MapView() {
+export default function MapView({ selectedTargetId, refreshSignal }: Props) {
   const hops = useWebSocket(WS_URL)
+  const route = useRoute(selectedTargetId, refreshSignal)
 
   const probeGroups = useMemo(() => groupByProbe(hops), [hops])
 
@@ -39,6 +46,10 @@ export default function MapView() {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
+
+      {route.length > 1 && (
+        <Polyline positions={route} pathOptions={{ color: '#f59e0b', weight: 3, dashArray: '6 4' }} />
+      )}
 
       {Array.from(probeGroups.entries()).map(([probeId, probeHops]) => {
         const sorted = [...probeHops].sort((a, b) => a.ttl - b.ttl)

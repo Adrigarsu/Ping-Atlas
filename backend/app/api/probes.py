@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.schemas import PaginatedProbes, ProbeCreated, ProbeOut, ProbeRequest, RouteOut
+from app.api.schemas import PaginatedProbes, ProbeCreated, ProbeOut, ProbeRequest, RouteOut, TargetOut
 from app.api.ws import HopMessage, manager
 from app.db.models import Hop, Probe, Target
 from app.db.session import AsyncSessionLocal
@@ -139,6 +139,12 @@ async def get_route(
         target_id=target_id,
         hops=[(h.latitude, h.longitude) for h in hops],  # type: ignore[misc]
     )
+
+
+@router.get("/targets", response_model=list[TargetOut])
+async def list_targets(session: AsyncSession = Depends(get_db)) -> list[TargetOut]:
+    targets = (await session.execute(select(Target).order_by(Target.created_at))).scalars().all()
+    return [TargetOut.model_validate(t) for t in targets]
 
 
 @router.get("/results", response_model=PaginatedProbes)

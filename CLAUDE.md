@@ -42,11 +42,15 @@
 - frontend/src/components/ — MapView, LatencyChart, Sidebar
 - frontend/src/components/MapView.tsx — CircleMarkers (RTT colour: green<50ms, yellow<150ms, red≥150ms), Polylines per probe, Popups, real-time WS updates
 - frontend/src/components/LatencyChart.tsx — Recharts LineChart, RTT over time, empty state when no probes
-- frontend/src/components/Sidebar.tsx — target selector input + LatencyChart; refreshSignal prop triggers data refetch
+- frontend/src/components/Sidebar.tsx — target list (GET /api/targets), selected target summary (min/avg/max RTT), on-demand probe button (POST /probe), LatencyChart for selected target
+- frontend/src/components/MapView.tsx — accepts selectedTargetId + refreshSignal; shows static route polyline (amber dashed) from useRoute, plus live WS CircleMarkers/Polylines
 - frontend/src/hooks/useWebSocket.ts — connects to /live, filters hops with null lat/lon, returns HopMessage[]
 - frontend/src/hooks/useProbeResults.ts — fetches GET /api/results?target=..., re-fetches on refreshSignal change
+- frontend/src/hooks/useTargets.ts — fetches GET /api/targets, returns Target[]
+- frontend/src/hooks/useRoute.ts — fetches GET /api/routes/{targetId}, returns [lat,lon][] for selected target
 - Vite proxy: /api → http://api:8000, /live → ws://api:8000 (configured in vite.config.ts)
-- App.tsx manages refreshSignal: increments 2s after last WS hop message (debounced)
+- App.tsx: lifts selectedTarget (Target | null) state; passes selectedTargetId+refreshSignal to MapView, onTargetChange+refreshSignal to Sidebar
+- GET /api/targets endpoint added to probes.py; TargetOut schema in schemas.py
 
 ## Data model
 - `targets` — hosts to probe (id UUID PK, host, label, created_at)
