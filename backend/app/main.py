@@ -1,6 +1,18 @@
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 from fastapi import FastAPI
 
-app = FastAPI(title="PingAtlas")
+from app.probe import geoip
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    geoip.init()
+    yield
+
+
+app = FastAPI(title="PingAtlas", lifespan=lifespan)
 
 
 @app.get("/health")
