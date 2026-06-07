@@ -61,6 +61,7 @@ class TargetOut(BaseModel):
     id: uuid.UUID
     host: str
     label: str | None
+    enabled: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

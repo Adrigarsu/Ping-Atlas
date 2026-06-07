@@ -22,13 +22,6 @@ async def get_db() -> AsyncSession:  # type: ignore[return]
         yield session
 
 
-def _resolve_host(target: str) -> str:
-    try:
-        return socket.gethostbyname(target)
-    except socket.gaierror:
-        raise HTTPException(status_code=422, detail=f"Cannot resolve hostname: '{target}'")
-
-
 async def _get_or_create_target(session: AsyncSession, host: str) -> Target:
     result = await session.execute(select(Target).where(Target.host == host))
     target = result.scalar_one_or_none()
@@ -39,67 +32,77 @@ async def _get_or_create_target(session: AsyncSession, host: str) -> Target:
     return target
 
 
+async def _execute_probe(host: str) -> uuid.UUID:
+    """Run a full traceroute probe for host, persist results, and broadcast WS hops.
+
+    Raises ValueError if the host cannot be resolved.
+    """
+    try:
+        ip = socket.gethostbyname(host)
+    except socket.gaierror:
+        raise ValueError(f"Cannot resolve hostname: '{host}'")
+
+    async with AsyncSessionLocal() as session:
+        target = await _get_or_create_target(session, host)
+
+        started_at = datetime.now(UTC)
+        probe = Probe(id=uuid.uuid4(), target_id=target.id, started_at=started_at)
+        session.add(probe)
+        await session.flush()
+
+        rtts: list[float] = []
+        total = 0
+
+        async for hop in traceroute_stream(ip):
+            total += 1
+            geo = geoip.resolve(hop.ip) if hop.ip else geoip.GeoResult(None, None, None, None)
+            if hop.rtt_ms is not None:
+                rtts.append(hop.rtt_ms)
+
+            session.add(
+                Hop(
+                    id=uuid.uuid4(),
+                    probe_id=probe.id,
+                    started_at=started_at,
+                    ttl=hop.ttl,
+                    ip=hop.ip,
+                    rtt_ms=hop.rtt_ms,
+                    latitude=geo.latitude,
+                    longitude=geo.longitude,
+                    city=geo.city,
+                    country=geo.country,
+                    asn=None,
+                )
+            )
+
+            await manager.broadcast(
+                HopMessage(
+                    probe_id=probe.id,
+                    ttl=hop.ttl,
+                    ip=hop.ip,
+                    rtt_ms=hop.rtt_ms,
+                    lat=geo.latitude,
+                    lon=geo.longitude,
+                    country=geo.country,
+                    city=geo.city,
+                )
+            )
+
+        probe.finished_at = datetime.now(UTC)
+        probe.rtt_ms = sum(rtts) / len(rtts) if rtts else None
+        probe.packet_loss = ((total - len(rtts)) / total * 100) if total else None
+
+        await session.commit()
+        return probe.id
+
+
 @router.post("/probe", response_model=ProbeCreated, status_code=202)
-async def run_probe(
-    body: ProbeRequest,
-    session: AsyncSession = Depends(get_db),
-) -> ProbeCreated:
-    ip = _resolve_host(body.target)
-    target = await _get_or_create_target(session, body.target)
-
-    started_at = datetime.now(UTC)
-    probe = Probe(
-        id=uuid.uuid4(),
-        target_id=target.id,
-        started_at=started_at,
-    )
-    session.add(probe)
-    await session.flush()
-
-    rtts: list[float] = []
-    total = 0
-
-    async for hop in traceroute_stream(ip):
-        total += 1
-        geo = geoip.resolve(hop.ip) if hop.ip else geoip.GeoResult(None, None, None, None)
-        if hop.rtt_ms is not None:
-            rtts.append(hop.rtt_ms)
-
-        session.add(
-            Hop(
-                id=uuid.uuid4(),
-                probe_id=probe.id,
-                started_at=started_at,
-                ttl=hop.ttl,
-                ip=hop.ip,
-                rtt_ms=hop.rtt_ms,
-                latitude=geo.latitude,
-                longitude=geo.longitude,
-                city=geo.city,
-                country=geo.country,
-                asn=None,
-            )
-        )
-
-        await manager.broadcast(
-            HopMessage(
-                probe_id=probe.id,
-                ttl=hop.ttl,
-                ip=hop.ip,
-                rtt_ms=hop.rtt_ms,
-                lat=geo.latitude,
-                lon=geo.longitude,
-                country=geo.country,
-                city=geo.city,
-            )
-        )
-
-    probe.finished_at = datetime.now(UTC)
-    probe.rtt_ms = sum(rtts) / len(rtts) if rtts else None
-    probe.packet_loss = ((total - len(rtts)) / total * 100) if total else None
-
-    await session.commit()
-    return ProbeCreated(probe_id=probe.id)
+async def run_probe(body: ProbeRequest) -> ProbeCreated:
+    try:
+        probe_id = await _execute_probe(body.target)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return ProbeCreated(probe_id=probe_id)
 
 
 @router.get("/routes/{target_id}", response_model=RouteOut)
