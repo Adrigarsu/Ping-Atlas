@@ -50,3 +50,8 @@ class PaginatedProbes(BaseModel):
     limit: int
     offset: int
     items: list[ProbeOut]
+
+
+class RouteOut(BaseModel):
+    target_id: uuid.UUID
+    hops: list[tuple[float, float]]

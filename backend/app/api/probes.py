@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.schemas import PaginatedProbes, ProbeCreated, ProbeOut, ProbeRequest
+from app.api.schemas import PaginatedProbes, ProbeCreated, ProbeOut, ProbeRequest, RouteOut
 from app.db.models import Hop, Probe, Target
 from app.db.session import AsyncSessionLocal
 from app.probe import geoip
@@ -84,6 +84,45 @@ async def run_probe(
 
     await session.commit()
     return ProbeCreated(probe_id=probe.id)
+
+
+@router.get("/routes/{target_id}", response_model=RouteOut)
+async def get_route(
+    target_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+) -> RouteOut:
+    result = await session.execute(select(Target).where(Target.id == target_id))
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail=f"Target '{target_id}' not found")
+
+    latest_probe = (
+        await session.execute(
+            select(Probe)
+            .where(Probe.target_id == target_id)
+            .where(Probe.finished_at.is_not(None))
+            .order_by(Probe.started_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    if latest_probe is None:
+        return RouteOut(target_id=target_id, hops=[])
+
+    hops = (
+        await session.execute(
+            select(Hop)
+            .where(Hop.probe_id == latest_probe.id)
+            .where(Hop.latitude.is_not(None))
+            .where(Hop.longitude.is_not(None))
+            .order_by(Hop.ttl)
+        )
+    ).scalars().all()
+
+    return RouteOut(
+        target_id=target_id,
+        hops=[(h.latitude, h.longitude) for h in hops],  # type: ignore[misc]
+    )
 
 
 @router.get("/results", response_model=PaginatedProbes)
