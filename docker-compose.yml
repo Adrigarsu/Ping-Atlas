@@ -17,8 +17,6 @@ services:
   api:
     build: ./backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    ports:
-      - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       PROBE_INTERVAL_SECONDS: ${PROBE_INTERVAL_SECONDS:-300}
@@ -37,11 +35,19 @@ services:
 
   frontend:
     build: ./frontend
-    ports:
-      - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - frontend
 
 volumes:
   postgres-data:

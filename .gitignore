@@ -60,7 +60,6 @@ frontend/playwright-report/
 frontend/.playwright/
 
 # ── Docker ──────────────────────────────────────────────────────────────────
-docker-compose.override.yml
 docker-compose.local.yml
 
 # Docker volumes persisted locally
