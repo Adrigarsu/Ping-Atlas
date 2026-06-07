@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.probes import router as probes_router
+from app.api.ws import router as ws_router
 from app.probe import geoip
 
 
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="PingAtlas", lifespan=lifespan)
 
 app.include_router(probes_router)
+app.include_router(ws_router)
 
 
 @app.get("/health")

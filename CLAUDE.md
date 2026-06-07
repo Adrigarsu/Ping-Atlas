@@ -32,7 +32,10 @@
 - backend/app/api/  — FastAPI routers
 - backend/app/api/schemas.py — Pydantic request/response models (ProbeRequest, ProbeOut, HopOut, PaginatedProbes)
 - backend/app/api/probes.py — POST /probe (202), GET /results (paginated), GET /routes/{target_id}
+- backend/app/api/ws.py — ConnectionManager + HopMessage schema + WebSocket /live endpoint
 - GET /routes/{target_id} returns latest traceroute as [[lat,lon],...] excluding null-coord hops; 404 if target missing
+- WS /live broadcasts HopMessage per hop as traceroute runs; WebSocketDisconnect handled gracefully
+- traceroute_stream() — async generator wrapping each sr1 call in run_in_executor for real-time yielding
 - backend/app/db/   — SQLAlchemy models + Alembic migrations
 - backend/app/db/session.py — async engine + AsyncSessionLocal
 - backend/app/db/migrations/ — Alembic env + versioned migration scripts
