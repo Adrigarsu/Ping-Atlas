@@ -4,10 +4,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app import scheduler
 from app.api.probes import router as probes_router
 from app.api.ws import router as ws_router
 from app.probe import geoip
-from app import scheduler
 
 
 @asynccontextmanager
