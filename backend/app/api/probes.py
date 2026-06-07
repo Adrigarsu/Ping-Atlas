@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.anomaly import check_and_alert
 from app.api.schemas import PaginatedProbes, ProbeCreated, ProbeOut, ProbeRequest, RouteOut, TargetOut
 from app.api.ws import HopMessage, manager
+from app.auth import require_api_key
 from app.db.models import Hop, Probe, Target
 from app.db.session import AsyncSessionLocal
 from app.limiter import limiter
@@ -101,7 +102,7 @@ async def _execute_probe(host: str) -> uuid.UUID:
         return probe.id
 
 
-@router.post("/probe", response_model=ProbeCreated, status_code=202)
+@router.post("/probe", response_model=ProbeCreated, status_code=202, dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
 async def run_probe(request: Request, response: Response, body: ProbeRequest) -> ProbeCreated:
     try:

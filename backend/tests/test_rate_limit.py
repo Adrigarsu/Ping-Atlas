@@ -7,6 +7,9 @@ from fastapi.testclient import TestClient
 from app.limiter import limiter
 from app.main import app
 
+VALID_KEY = "test-key"
+AUTH_HEADERS = {"X-Api-Key": VALID_KEY}
+
 
 @pytest.fixture(autouse=True)
 def reset_limiter() -> None:
@@ -19,21 +22,23 @@ def client() -> TestClient:
 
 
 def test_probe_allowed_within_limit(client: TestClient) -> None:
-    with patch("app.api.probes._execute_probe", new_callable=AsyncMock) as mock_exec:
-        mock_exec.return_value = uuid.uuid4()
-        resp = client.post("/probe", json={"target": "8.8.8.8"})
+    with patch.dict("os.environ", {"API_KEYS": VALID_KEY}):
+        with patch("app.api.probes._execute_probe", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = uuid.uuid4()
+            resp = client.post("/probe", json={"target": "8.8.8.8"}, headers=AUTH_HEADERS)
     assert resp.status_code == 202
 
 
 def test_probe_rate_limited_after_10_requests(client: TestClient) -> None:
-    with patch("app.api.probes._execute_probe", new_callable=AsyncMock) as mock_exec:
-        mock_exec.return_value = uuid.uuid4()
+    with patch.dict("os.environ", {"API_KEYS": VALID_KEY}):
+        with patch("app.api.probes._execute_probe", new_callable=AsyncMock) as mock_exec:
+            mock_exec.return_value = uuid.uuid4()
 
-        for i in range(10):
-            resp = client.post("/probe", json={"target": "8.8.8.8"})
-            assert resp.status_code == 202, f"Request {i + 1} should be allowed"
+            for i in range(10):
+                resp = client.post("/probe", json={"target": "8.8.8.8"}, headers=AUTH_HEADERS)
+                assert resp.status_code == 202, f"Request {i + 1} should be allowed"
 
-        resp = client.post("/probe", json={"target": "8.8.8.8"})
+            resp = client.post("/probe", json={"target": "8.8.8.8"}, headers=AUTH_HEADERS)
 
     assert resp.status_code == 429
     assert "Retry-After" in resp.headers
