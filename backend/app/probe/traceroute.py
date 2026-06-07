@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from scapy.layers.inet import ICMP, IP
 from scapy.sendrecv import sr1
 
-
 MAX_HOPS = int(os.environ.get("MAX_HOPS", 30))
 
 
