@@ -24,6 +24,7 @@
 ## Architecture
 - backend/app/probe/ — Scapy ICMP engine + GeoIP wrapper (CAP_NET_RAW required)
 - backend/app/probe/icmp_probe.py — ping(host, count, timeout) → list[float | None]
+- backend/app/probe/traceroute.py — traceroute(host, max_hops, timeout) → list[Hop]; Hop(ttl, ip, rtt_ms)
 - backend/app/api/  — FastAPI routers
 - backend/app/db/   — SQLAlchemy models + Alembic migrations
 - backend/app/db/session.py — async engine + AsyncSessionLocal
@@ -41,3 +42,4 @@
 - Never use privileged: true in Docker — use cap_add: [NET_RAW] only
 - DB port never exposed outside Docker network
 - TimescaleDB hypertables: partition column must be part of the PK — always use composite PK (id, started_at) for time-series tables
+- Scapy requires CAP_NET_RAW — already set in docker-compose.yml; tests must mock sr1, never send real packets
