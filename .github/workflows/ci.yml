@@ -88,6 +88,9 @@ jobs:
       - name: Start stack
         run: docker compose up -d --build
 
+      - name: Run database migrations
+        run: docker compose run --rm api alembic upgrade head
+
       - name: Wait for nginx to be ready
         run: |
           for i in $(seq 1 30); do
