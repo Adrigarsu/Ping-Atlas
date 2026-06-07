@@ -68,6 +68,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
       - name: Create .env (auth disabled for E2E)
         run: |
           cp .env.example .env
@@ -81,18 +93,6 @@ jobs:
           for i in $(seq 1 30); do
             curl -sf http://localhost/api/targets && break || sleep 5
           done
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Install Playwright browsers
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests
         working-directory: frontend
