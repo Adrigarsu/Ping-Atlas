@@ -61,3 +61,49 @@ jobs:
 
       - name: docker compose build
         run: docker compose build
+
+  test-e2e:
+    name: E2E tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Create .env (auth disabled for E2E)
+        run: |
+          cp .env.example .env
+          sed -i 's/^API_KEYS=.*/API_KEYS=/' .env
+
+      - name: Start stack
+        run: docker compose up -d --build
+
+      - name: Run database migrations
+        run: docker compose run --rm api alembic upgrade head
+
+      - name: Wait for nginx to be ready
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost/api/targets && break || sleep 5
+          done
+
+      - name: Run E2E tests
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
