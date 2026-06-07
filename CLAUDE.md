@@ -40,7 +40,9 @@
 - backend/app/db/session.py — async engine + AsyncSessionLocal
 - backend/app/db/migrations/ — Alembic env + versioned migration scripts
 - frontend/src/components/ — MapView, LatencyChart, Sidebar
-- frontend/src/components/MapView.tsx — react-leaflet MapContainer with OpenStreetMap tiles
+- frontend/src/components/MapView.tsx — CircleMarkers (RTT colour: green<50ms, yellow<150ms, red≥150ms), Polylines per probe, Popups, real-time WS updates
+- frontend/src/hooks/useWebSocket.ts — connects to /live, filters hops with null lat/lon, returns HopMessage[]
+- Vite proxy: /api → http://api:8000, /live → ws://api:8000 (configured in vite.config.ts)
 
 ## Data model
 - `targets` — hosts to probe (id UUID PK, host, label, created_at)

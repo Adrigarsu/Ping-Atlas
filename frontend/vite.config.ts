@@ -6,5 +6,15 @@ export default defineConfig({
   server: {
     host: true,
     port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://api:8000',
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/live': {
+        target: 'ws://api:8000',
+        ws: true,
+      },
+    },
   },
 })
