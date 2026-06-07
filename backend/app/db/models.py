@@ -70,3 +70,17 @@ class Hop(Base):
         back_populates="hops",
         primaryjoin="foreign(Hop.probe_id) == Probe.id",
     )
+
+
+class Alert(Base):
+    __tablename__ = "alerts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    target_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("targets.id", ondelete="CASCADE"), nullable=False)
+    # No DB-level FK to probes — probes is a TimescaleDB hypertable
+    probe_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    triggered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    rtt_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    rolling_avg_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    delta_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    resolved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="FALSE")

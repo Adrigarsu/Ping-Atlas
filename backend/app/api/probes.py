@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.anomaly import check_and_alert
 from app.api.schemas import PaginatedProbes, ProbeCreated, ProbeOut, ProbeRequest, RouteOut, TargetOut
 from app.api.ws import HopMessage, manager
 from app.db.models import Hop, Probe, Target
@@ -91,6 +92,9 @@ async def _execute_probe(host: str) -> uuid.UUID:
         probe.finished_at = datetime.now(UTC)
         probe.rtt_ms = sum(rtts) / len(rtts) if rtts else None
         probe.packet_loss = ((total - len(rtts)) / total * 100) if total else None
+
+        if probe.rtt_ms is not None:
+            await check_and_alert(session, target.id, probe.id, probe.rtt_ms)
 
         await session.commit()
         return probe.id

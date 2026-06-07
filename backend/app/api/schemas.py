@@ -65,3 +65,16 @@ class TargetOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AlertOut(BaseModel):
+    id: uuid.UUID
+    target_id: uuid.UUID
+    probe_id: uuid.UUID
+    triggered_at: datetime
+    rtt_ms: float
+    rolling_avg_ms: float
+    delta_ms: float
+    resolved: bool
+
+    model_config = {"from_attributes": True}
