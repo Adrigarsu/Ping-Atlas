@@ -41,8 +41,12 @@
 - backend/app/db/migrations/ — Alembic env + versioned migration scripts
 - frontend/src/components/ — MapView, LatencyChart, Sidebar
 - frontend/src/components/MapView.tsx — CircleMarkers (RTT colour: green<50ms, yellow<150ms, red≥150ms), Polylines per probe, Popups, real-time WS updates
+- frontend/src/components/LatencyChart.tsx — Recharts LineChart, RTT over time, empty state when no probes
+- frontend/src/components/Sidebar.tsx — target selector input + LatencyChart; refreshSignal prop triggers data refetch
 - frontend/src/hooks/useWebSocket.ts — connects to /live, filters hops with null lat/lon, returns HopMessage[]
+- frontend/src/hooks/useProbeResults.ts — fetches GET /api/results?target=..., re-fetches on refreshSignal change
 - Vite proxy: /api → http://api:8000, /live → ws://api:8000 (configured in vite.config.ts)
+- App.tsx manages refreshSignal: increments 2s after last WS hop message (debounced)
 
 ## Data model
 - `targets` — hosts to probe (id UUID PK, host, label, created_at)
