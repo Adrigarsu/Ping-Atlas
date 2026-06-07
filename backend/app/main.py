@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import scheduler
+from app.api.alerts import router as alerts_router
 from app.api.probes import router as probes_router
 from app.api.ws import router as ws_router
 from app.probe import geoip
@@ -26,6 +27,7 @@ app = FastAPI(title="PingAtlas", lifespan=lifespan)
 
 app.include_router(probes_router)
 app.include_router(ws_router)
+app.include_router(alerts_router)
 
 
 @app.get("/health")
