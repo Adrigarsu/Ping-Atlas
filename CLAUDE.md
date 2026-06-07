@@ -31,8 +31,9 @@
 - backend/app/probe/geoip.py — init() loads mmdb at startup; resolve(ip) → GeoResult(lat, lon, country, city)
 - backend/app/api/  — FastAPI routers
 - backend/app/api/schemas.py — Pydantic request/response models (ProbeRequest, ProbeOut, HopOut, PaginatedProbes)
-- backend/app/api/probes.py — POST /probe (202), GET /results (paginated), GET /routes/{target_id}
+- backend/app/api/probes.py — POST /probe (202), GET /results (paginated), GET /routes/{target_id}; _execute_probe(host) shared by HTTP handler and scheduler
 - backend/app/api/ws.py — ConnectionManager + HopMessage schema + WebSocket /live endpoint
+- backend/app/scheduler.py — AsyncIOScheduler; _probe_all_enabled() queries enabled targets each run; start()/stop() called from lifespan
 - GET /routes/{target_id} returns latest traceroute as [[lat,lon],...] excluding null-coord hops; 404 if target missing
 - WS /live broadcasts HopMessage per hop as traceroute runs; WebSocketDisconnect handled gracefully
 - traceroute_stream() — async generator wrapping each sr1 call in run_in_executor for real-time yielding
@@ -50,10 +51,11 @@
 - frontend/src/hooks/useRoute.ts — fetches GET /api/routes/{targetId}, returns [lat,lon][] for selected target
 - Vite proxy: /api → http://api:8000, /live → ws://api:8000 (configured in vite.config.ts)
 - App.tsx: lifts selectedTarget (Target | null) state; passes selectedTargetId+refreshSignal to MapView, onTargetChange+refreshSignal to Sidebar
-- GET /api/targets endpoint added to probes.py; TargetOut schema in schemas.py
+- GET /api/targets endpoint added to probes.py; TargetOut schema in schemas.py (includes enabled field)
+- PROBE_INTERVAL_SECONDS env var controls scheduler cadence (default 300 s); scheduler re-queries enabled targets on every tick
 
 ## Data model
-- `targets` — hosts to probe (id UUID PK, host, label, created_at)
+- `targets` — hosts to probe (id UUID PK, host, label, enabled bool default TRUE, created_at)
 - `probes` — each ping run (PK: id+started_at, target_id FK, rtt_ms, packet_loss) — TimescaleDB hypertable on started_at
 - `hops` — traceroute hops (PK: id+started_at, probe_id, ttl, ip, lat/lon, city, country, asn) — TimescaleDB hypertable on started_at
 - Hypertables require PrimaryKeyConstraint(id, started_at) — TimescaleDB constraint
