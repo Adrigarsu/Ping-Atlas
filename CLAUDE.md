@@ -36,6 +36,7 @@
 - backend/app/db/session.py — async engine + AsyncSessionLocal
 - backend/app/db/migrations/ — Alembic env + versioned migration scripts
 - frontend/src/components/ — MapView, LatencyChart, Sidebar
+- frontend/src/components/MapView.tsx — react-leaflet MapContainer with OpenStreetMap tiles
 
 ## Data model
 - `targets` — hosts to probe (id UUID PK, host, label, created_at)
