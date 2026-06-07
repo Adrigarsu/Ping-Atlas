@@ -1,9 +1,12 @@
+import urllib.request
 import uuid
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.anomaly import check_and_alert
+from app.anomaly import _send_webhook, check_and_alert
+from app.db.models import Alert
 
 
 def _make_session(rtt_history: list[float]) -> AsyncMock:
@@ -80,12 +83,6 @@ async def test_webhook_sent_on_alert() -> None:
 
 @pytest.mark.asyncio
 async def test_webhook_skipped_when_url_not_set() -> None:
-    import asyncio
-    import urllib.request
-    from app.anomaly import _send_webhook
-    from app.db.models import Alert
-    from datetime import UTC, datetime
-
     alert = Alert(
         id=uuid.uuid4(),
         target_id=uuid.uuid4(),
