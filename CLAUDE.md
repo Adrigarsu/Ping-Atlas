@@ -27,6 +27,8 @@
 - backend/app/probe/traceroute.py — traceroute(host, max_hops, timeout) → list[Hop]; Hop(ttl, ip, rtt_ms)
 - backend/app/probe/geoip.py — init() loads mmdb at startup; resolve(ip) → GeoResult(lat, lon, country, city)
 - backend/app/api/  — FastAPI routers
+- backend/app/api/schemas.py — Pydantic request/response models (ProbeRequest, ProbeOut, HopOut, PaginatedProbes)
+- backend/app/api/probes.py — POST /probe (202) and GET /results (paginated)
 - backend/app/db/   — SQLAlchemy models + Alembic migrations
 - backend/app/db/session.py — async engine + AsyncSessionLocal
 - backend/app/db/migrations/ — Alembic env + versioned migration scripts
@@ -46,3 +48,5 @@
 - Scapy requires CAP_NET_RAW — already set in docker-compose.yml; tests must mock sr1, never send real packets
 - geoip.init() must be called at app startup (FastAPI lifespan) — raises ConfigurationError if mmdb missing
 - Private/loopback/reserved IPs always return all-None GeoResult without querying the reader
+- TimescaleDB does not support FK constraints between hypertables — use primaryjoin with foreign() annotation in SQLAlchemy relationships
+- geoip.init() failure is non-fatal in dev (logs warning); resolve() returns all-None if reader is not loaded

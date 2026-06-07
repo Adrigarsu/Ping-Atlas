@@ -43,9 +43,7 @@ def _is_private(ip: str) -> bool:
 
 def resolve(ip: str) -> GeoResult:
     """Return geolocation for an IP. Private/reserved IPs return all-None result."""
-    assert _reader is not None, "geoip.init() must be called before resolve()"
-
-    if _is_private(ip):
+    if _reader is None or _is_private(ip):
         return GeoResult(latitude=None, longitude=None, country=None, city=None)
 
     try:

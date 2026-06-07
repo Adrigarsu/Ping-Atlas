@@ -41,7 +41,10 @@ class Probe(Base):
     packet_loss: Mapped[float | None] = mapped_column(Float)
 
     target: Mapped["Target"] = relationship(back_populates="probes")
-    hops: Mapped[list["Hop"]] = relationship(back_populates="probe")
+    hops: Mapped[list["Hop"]] = relationship(
+        back_populates="probe",
+        primaryjoin="Probe.id == foreign(Hop.probe_id)",
+    )
 
 
 class Hop(Base):
@@ -49,6 +52,7 @@ class Hop(Base):
     __table_args__ = (PrimaryKeyConstraint("id", "started_at"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4)
+    # No DB-level FK — TimescaleDB does not support FKs between hypertables
     probe_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ttl: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -60,4 +64,7 @@ class Hop(Base):
     country: Mapped[str | None] = mapped_column(String(255))
     asn: Mapped[str | None] = mapped_column(Text)
 
-    probe: Mapped["Probe"] = relationship(back_populates="hops")
+    probe: Mapped["Probe"] = relationship(
+        back_populates="hops",
+        primaryjoin="foreign(Hop.probe_id) == Probe.id",
+    )
