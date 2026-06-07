@@ -25,9 +25,18 @@
 - backend/app/probe/ — Scapy ICMP engine + GeoIP wrapper (CAP_NET_RAW required)
 - backend/app/api/  — FastAPI routers
 - backend/app/db/   — SQLAlchemy models + Alembic migrations
+- backend/app/db/session.py — async engine + AsyncSessionLocal
+- backend/app/db/migrations/ — Alembic env + versioned migration scripts
 - frontend/src/components/ — MapView, LatencyChart, Sidebar
+
+## Data model
+- `targets` — hosts to probe (id UUID PK, host, label, created_at)
+- `probes` — each ping run (PK: id+started_at, target_id FK, rtt_ms, packet_loss) — TimescaleDB hypertable on started_at
+- `hops` — traceroute hops (PK: id+started_at, probe_id, ttl, ip, lat/lon, city, country, asn) — TimescaleDB hypertable on started_at
+- Hypertables require PrimaryKeyConstraint(id, started_at) — TimescaleDB constraint
 
 ## Important
 - Never commit GeoLite2-City.mmdb (it's in .gitignore)
 - Never use privileged: true in Docker — use cap_add: [NET_RAW] only
 - DB port never exposed outside Docker network
+- TimescaleDB hypertables: partition column must be part of the PK — always use composite PK (id, started_at) for time-series tables
