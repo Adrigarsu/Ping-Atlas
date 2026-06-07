@@ -1,13 +1,17 @@
 import { useState } from 'react'
+import type { Alert } from '../hooks/useAlerts'
+import { useAlerts } from '../hooks/useAlerts'
 import type { ProbeResult } from '../hooks/useProbeResults'
 import { useProbeResults } from '../hooks/useProbeResults'
 import type { Target } from '../hooks/useTargets'
 import { useTargets } from '../hooks/useTargets'
 import LatencyChart from './LatencyChart'
+import ProbeTimeline from './ProbeTimeline'
 
 interface Props {
   refreshSignal: number
   onTargetChange: (target: Target | null) => void
+  onProbeSelect: (probe: ProbeResult | null) => void
 }
 
 function ProbeStats({ results }: { results: ProbeResult[] }) {
@@ -32,17 +36,26 @@ function ProbeStats({ results }: { results: ProbeResult[] }) {
   )
 }
 
-export default function Sidebar({ refreshSignal, onTargetChange }: Props) {
+export default function Sidebar({ refreshSignal, onTargetChange, onProbeSelect }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null)
   const [probing, setProbing] = useState(false)
 
   const targets = useTargets(refreshSignal)
   const selected = targets.find((t) => t.id === selectedId) ?? null
   const results = useProbeResults(selected?.host ?? null, refreshSignal)
+  const alerts: Alert[] = useAlerts(selectedId, refreshSignal)
 
   function handleSelect(t: Target) {
     setSelectedId(t.id)
+    setSelectedProbeId(null)
     onTargetChange(t)
+    onProbeSelect(null)
+  }
+
+  function handleProbeSelect(probe: ProbeResult) {
+    setSelectedProbeId(probe.id)
+    onProbeSelect(probe)
   }
 
   async function handleProbe() {
@@ -118,7 +131,14 @@ export default function Sidebar({ refreshSignal, onTargetChange }: Props) {
           <ProbeStats results={results} />
 
           <h3 style={{ fontSize: '0.875rem', fontWeight: 500, margin: 0 }}>Latency over time</h3>
-          <LatencyChart results={results} />
+          <LatencyChart results={results} selectedProbeId={selectedProbeId} />
+
+          <ProbeTimeline
+            probes={results}
+            alerts={alerts}
+            selectedProbeId={selectedProbeId}
+            onSelect={handleProbeSelect}
+          />
         </>
       )}
     </aside>

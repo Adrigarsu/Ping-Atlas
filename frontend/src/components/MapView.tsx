@@ -1,6 +1,7 @@
 import 'leaflet/dist/leaflet.css'
 import { useMemo } from 'react'
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer } from 'react-leaflet'
+import type { ProbeResult } from '../hooks/useProbeResults'
 import { useRoute } from '../hooks/useRoute'
 import { type HopMessage, useWebSocket } from '../hooks/useWebSocket'
 
@@ -10,6 +11,7 @@ const WS_URL = `ws://${window.location.host}/live`
 
 interface Props {
   selectedTargetId: string | null
+  selectedProbe: ProbeResult | null
   refreshSignal: number
 }
 
@@ -30,13 +32,57 @@ function groupByProbe(hops: HopMessage[]): Map<string, HopMessage[]> {
   return groups
 }
 
-export default function MapView({ selectedTargetId, refreshSignal }: Props) {
+export default function MapView({ selectedTargetId, selectedProbe, refreshSignal }: Props) {
   const hops = useWebSocket(WS_URL)
-  const route = useRoute(selectedTargetId, refreshSignal)
+  const fallbackRoute = useRoute(selectedTargetId, refreshSignal)
 
   const probeGroups = useMemo(() => groupByProbe(hops), [hops])
 
+  const selectedRoute = useMemo<[number, number][]>(() => {
+    if (!selectedProbe) return []
+    return selectedProbe.hops
+      .filter((h) => h.latitude !== null && h.longitude !== null)
+      .sort((a, b) => a.ttl - b.ttl)
+      .map((h) => [h.latitude!, h.longitude!])
+  }, [selectedProbe])
+
+  const activeRoute = selectedRoute.length > 0 ? selectedRoute : fallbackRoute
+
+  // Deduplicate consecutive identical coordinates (Docker NAT causes all hops to share one IP)
+  const dedupedRoute = useMemo<[number, number][]>(() => {
+    const seen = new Set<string>()
+    return activeRoute.filter(([lat, lon]) => {
+      const key = `${lat},${lon}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [activeRoute])
+
+  const routeColor = selectedRoute.length > 0 ? '#a855f7' : '#f59e0b'
+  const noLocationData = selectedTargetId !== null && dedupedRoute.length === 0 && hops.length === 0
+
   return (
+    <div style={{ position: 'relative', height: '100vh', width: '100%' }}>
+    {noLocationData && (
+      <div style={{
+        position: 'absolute',
+        top: 12,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1000,
+        background: '#1f2937',
+        border: '1px solid #4b5563',
+        borderRadius: 8,
+        padding: '6px 14px',
+        fontSize: '0.8rem',
+        color: '#9ca3af',
+        pointerEvents: 'none',
+        whiteSpace: 'nowrap',
+      }}>
+        No location data — IP not found in GeoIP database
+      </div>
+    )}
     <MapContainer
       center={INITIAL_CENTER}
       zoom={INITIAL_ZOOM}
@@ -47,9 +93,21 @@ export default function MapView({ selectedTargetId, refreshSignal }: Props) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
 
-      {route.length > 1 && (
-        <Polyline positions={route} pathOptions={{ color: '#f59e0b', weight: 3, dashArray: '6 4' }} />
+      {dedupedRoute.length > 1 && (
+        <Polyline
+          positions={dedupedRoute}
+          pathOptions={{ color: routeColor, weight: 3, dashArray: '6 4' }}
+        />
       )}
+
+      {dedupedRoute.map(([lat, lon], i) => (
+        <CircleMarker
+          key={`route-${lat}-${lon}-${i}`}
+          center={[lat, lon]}
+          radius={8}
+          pathOptions={{ color: routeColor, fillColor: routeColor, fillOpacity: 0.85 }}
+        />
+      ))}
 
       {Array.from(probeGroups.entries()).map(([probeId, probeHops]) => {
         const sorted = [...probeHops].sort((a, b) => a.ttl - b.ttl)
@@ -86,5 +144,6 @@ export default function MapView({ selectedTargetId, refreshSignal }: Props) {
         )
       })}
     </MapContainer>
+    </div>
   )
 }
