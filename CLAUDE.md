@@ -68,6 +68,12 @@
 - `alerts` — latency spike alerts (id UUID PK, target_id FK, probe_id, triggered_at, rtt_ms, rolling_avg_ms, delta_ms, resolved bool default FALSE)
 - Hypertables require PrimaryKeyConstraint(id, started_at) — TimescaleDB constraint
 
+## Nginx
+- nginx/nginx.conf — reverse proxy: /api/* → FastAPI (strips /api prefix), /live → FastAPI (WebSocket upgrade headers), /* → Vite frontend
+- docker-compose.yml exposes only port 80 (nginx); api and frontend have no direct ports in production
+- docker-compose.override.yml (committed) re-exposes api:8000 and frontend:3000 for local development; loaded automatically by Docker Compose
+- docker-compose.local.yml is gitignored (for personal local overrides)
+
 ## Important
 - Never commit GeoLite2-City.mmdb (it's in .gitignore)
 - Never use privileged: true in Docker — use cap_add: [NET_RAW] only
