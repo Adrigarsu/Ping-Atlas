@@ -8,10 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.schemas import PaginatedProbes, ProbeCreated, ProbeOut, ProbeRequest, RouteOut
+from app.api.ws import HopMessage, manager
 from app.db.models import Hop, Probe, Target
 from app.db.session import AsyncSessionLocal
 from app.probe import geoip
-from app.probe.traceroute import traceroute
+from app.probe.traceroute import traceroute_stream
 
 router = APIRouter()
 
@@ -55,13 +56,15 @@ async def run_probe(
     session.add(probe)
     await session.flush()
 
-    hops = traceroute(ip)
-    rtts = [h.rtt_ms for h in hops if h.rtt_ms is not None]
-    total = len(hops)
-    timeouts = sum(1 for h in hops if h.rtt_ms is None)
+    rtts: list[float] = []
+    total = 0
 
-    for hop in hops:
+    async for hop in traceroute_stream(ip):
+        total += 1
         geo = geoip.resolve(hop.ip) if hop.ip else geoip.GeoResult(None, None, None, None)
+        if hop.rtt_ms is not None:
+            rtts.append(hop.rtt_ms)
+
         session.add(
             Hop(
                 id=uuid.uuid4(),
@@ -78,9 +81,20 @@ async def run_probe(
             )
         )
 
+        await manager.broadcast(
+            HopMessage(
+                probe_id=probe.id,
+                ttl=hop.ttl,
+                ip=hop.ip,
+                rtt_ms=hop.rtt_ms,
+                lat=geo.latitude,
+                lon=geo.longitude,
+            )
+        )
+
     probe.finished_at = datetime.now(datetime.UTC)
     probe.rtt_ms = sum(rtts) / len(rtts) if rtts else None
-    probe.packet_loss = (timeouts / total * 100) if total else None
+    probe.packet_loss = ((total - len(rtts)) / total * 100) if total else None
 
     await session.commit()
     return ProbeCreated(probe_id=probe.id)
