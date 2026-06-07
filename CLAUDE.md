@@ -20,8 +20,9 @@
 - Python: ruff for linting, black for formatting, type hints everywhere
 - TypeScript: strict mode, no any, functional components with hooks
 - Tests: pytest for backend (mock Scapy, no real ICMP), Playwright for E2E
-- Run tests with coverage: `docker compose run --rm api pytest tests/ -v --cov=app/probe --cov-report=term-missing`
+- Run tests with coverage: `docker compose run --rm api pytest tests/ -v --cov=app/probe --cov-report=term-missing --cov-fail-under=80`
 - probe/ package is at 100% coverage — maintain ≥80% on every PR
+- CI: .github/workflows/ci.yml — jobs: lint (ruff + eslint), test-backend, build; triggers on push/PR to main
 
 ## Architecture
 - backend/app/probe/ — Scapy ICMP engine + GeoIP wrapper (CAP_NET_RAW required)

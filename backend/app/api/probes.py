@@ -1,6 +1,6 @@
 import socket
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -32,7 +32,7 @@ async def _get_or_create_target(session: AsyncSession, host: str) -> Target:
     result = await session.execute(select(Target).where(Target.host == host))
     target = result.scalar_one_or_none()
     if target is None:
-        target = Target(id=uuid.uuid4(), host=host, created_at=datetime.now(timezone.utc))
+        target = Target(id=uuid.uuid4(), host=host, created_at=datetime.now(datetime.UTC))
         session.add(target)
         await session.flush()
     return target
@@ -46,7 +46,7 @@ async def run_probe(
     ip = _resolve_host(body.target)
     target = await _get_or_create_target(session, body.target)
 
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(datetime.UTC)
     probe = Probe(
         id=uuid.uuid4(),
         target_id=target.id,
@@ -78,7 +78,7 @@ async def run_probe(
             )
         )
 
-    probe.finished_at = datetime.now(timezone.utc)
+    probe.finished_at = datetime.now(datetime.UTC)
     probe.rtt_ms = sum(rtts) / len(rtts) if rtts else None
     probe.packet_loss = (timeouts / total * 100) if total else None
 
