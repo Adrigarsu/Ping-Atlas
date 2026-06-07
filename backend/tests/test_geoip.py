@@ -45,3 +45,25 @@ def test_init_raises_configuration_error_on_missing_file() -> None:
     with patch("geoip2.database.Reader", side_effect=FileNotFoundError):
         with pytest.raises(ConfigurationError, match="not found"):
             geoip_module.init()
+
+
+def test_init_raises_configuration_error_on_generic_exception() -> None:
+    with patch("geoip2.database.Reader", side_effect=OSError("permission denied")):
+        with pytest.raises(ConfigurationError, match="Failed to open"):
+            geoip_module.init()
+
+
+def test_resolve_invalid_ip_string_returns_none() -> None:
+    geoip_module._reader = MagicMock()
+    result = resolve("not-an-ip")
+    assert result == GeoResult(latitude=None, longitude=None, country=None, city=None)
+
+
+def test_resolve_address_not_found_returns_none() -> None:
+    import geoip2.errors
+
+    reader = MagicMock()
+    reader.city.side_effect = geoip2.errors.AddressNotFoundError("not found")
+    geoip_module._reader = reader
+    result = resolve("1.2.3.4")
+    assert result == GeoResult(latitude=None, longitude=None, country=None, city=None)
