@@ -55,3 +55,12 @@ class PaginatedProbes(BaseModel):
 class RouteOut(BaseModel):
     target_id: uuid.UUID
     hops: list[tuple[float, float]]
+
+
+class TargetOut(BaseModel):
+    id: uuid.UUID
+    host: str
+    label: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
