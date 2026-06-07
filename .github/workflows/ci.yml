@@ -28,7 +28,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npx eslint src/ --ext .ts,.tsx
+          npx eslint src/
 
   test-backend:
     name: Backend tests
