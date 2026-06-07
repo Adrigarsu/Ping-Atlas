@@ -1,6 +1,6 @@
-# PingAtlas 🌐
+# PingAtlas
 
-> Launch pings and traceroutes to real servers distributed around the world, build a latency map, detect suboptimal routes, and keep a historical record of how the network changes over time.
+> Launch pings and traceroutes to servers distributed around the world, build a latency map, detect suboptimal routes, and keep a historical record of how the network changes over time.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)
@@ -29,8 +29,7 @@
 
 PingAtlas is a self-hosted network diagnostics tool that probes a configurable set of target servers using ICMP (ping) and traceroute, geolocates every hop with MaxMind GeoLite2, and renders the results on an interactive world map. Latency history is persisted so you can see how routing changes over time.
 
-**Estimated cost:** €0 — all dependencies are free/open-source.  
-**Difficulty:** ⭐⭐⭐ Medium  
+**Estimated cost:** €0 — all dependencies are free/open-source.
 **Target audience:** Computer science students, network engineers, home lab enthusiasts.
 
 ---
@@ -40,10 +39,13 @@ PingAtlas is a self-hosted network diagnostics tool that probes a configurable s
 - Raw ICMP probes via [Scapy](https://scapy.net/) — no OS-level `ping` subprocess dependency
 - Traceroute with per-hop latency and geolocation
 - Interactive world map (Leaflet + React) with latency colour scale (green → yellow → red)
+- Probe timeline panel showing RTT history with per-probe alert markers
 - Suboptimal route detection based on configurable latency delta thresholds
 - Historical time-series storage with per-destination trend charts
 - Periodic scheduled probes (APScheduler)
-- REST + WebSocket API (FastAPI)
+- REST + WebSocket API (FastAPI) behind nginx reverse proxy
+- Optional webhook notifications on latency spikes
+- API key authentication for write endpoints
 - Fully containerised with Docker Compose
 
 ---
@@ -51,25 +53,32 @@ PingAtlas is a self-hosted network diagnostics tool that probes a configurable s
 ## Architecture
 
 ```
+Browser
+  │ HTTP / WS  (port 80)
+  ▼
 ┌─────────────────────────────────────────────────────┐
-│  React Frontend (Vite)                              │
-│  react-leaflet · Recharts · WebSocket client        │
-└──────────────────────┬──────────────────────────────┘
-                       │ HTTP / WS
-┌──────────────────────▼──────────────────────────────┐
-│  FastAPI  (Uvicorn)                                 │
-│  POST /probe  GET /results  GET /routes  WS /live   │
-└────────┬────────────────────────┬───────────────────┘
-         │                        │
-┌────────▼──────────┐   ┌─────────▼─────────────────┐
-│  Probe worker     │   │  PostgreSQL + TimescaleDB  │
-│  Scapy ICMP       │   │  targets · hops · latency  │
-│  GeoLite2 mmdb    │   └────────────────────────────┘
-│  APScheduler      │
-└───────────────────┘
+│  nginx reverse proxy                                │
+│  /api/* → FastAPI   /live → WS   /* → Frontend     │
+└────────────────────┬────────────────────────────────┘
+                     │
+       ┌─────────────┴─────────────┐
+       ▼                           ▼
+┌─────────────────┐   ┌────────────────────────────────┐
+│  React (Vite)   │   │  FastAPI  (Uvicorn)             │
+│  react-leaflet  │   │  POST /probe  GET /results      │
+│  Recharts       │   │  GET /routes  GET /targets      │
+│  WebSocket      │   │  GET /alerts  WS /live          │
+└─────────────────┘   └──────────┬─────────────────────┘
+                                 │
+                    ┌────────────┴──────────────────┐
+                    │                               │
+          ┌─────────▼────────┐   ┌─────────────────▼──────────┐
+          │  Probe engine    │   │  PostgreSQL 16 + TimescaleDB│
+          │  Scapy ICMP      │   │  targets · probes · hops    │
+          │  GeoLite2 mmdb   │   │  alerts                     │
+          │  APScheduler     │   └────────────────────────────-┘
+          └──────────────────┘
 ```
-
-Full architecture and data model documentation: [Wiki — Architecture & Stack](../../wiki/Architecture-and-Stack)
 
 ---
 
@@ -77,20 +86,19 @@ Full architecture and data model documentation: [Wiki — Architecture & Stack](
 
 | Requirement | Version | Notes |
 |---|---|---|
-| Docker + Docker Compose | 24+ / v2+ | Required for containerised setup |
-| Python | 3.11+ | Only needed for local development |
-| Node.js | 20+ | Only needed for local frontend development |
-| MaxMind GeoLite2 | — | Free licence required — see below |
+| Docker Engine | 24+ | Required |
+| Docker Compose | v2+ | Bundled with Docker Desktop |
+| MaxMind GeoLite2 | — | Free licence — see below |
 
 ### MaxMind GeoLite2 licence
 
-PingAtlas uses the GeoLite2 City database for IP geolocation. You need a free MaxMind account to download the `.mmdb` file:
+PingAtlas uses the GeoLite2 City database for IP geolocation. A free MaxMind account is required:
 
 1. Register at <https://dev.maxmind.com/geoip/geolite2-free-geolocation-data>
 2. Download `GeoLite2-City.mmdb`
-3. Place the file at `backend/data/GeoLite2-City.mmdb`
+3. Place the file at `backend/GeoLite2-City.mmdb`
 
-> The file is excluded from version control (`.gitignore`). Never commit it to the repository.
+> The file is excluded from version control (`.gitignore`). Never commit it.
 
 ---
 
@@ -98,79 +106,102 @@ PingAtlas uses the GeoLite2 City database for IP geolocation. You need a free Ma
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/pingatlas.git
-cd pingatlas
+git clone https://github.com/Adrigarsu/Ping-Atlas.git
+cd Ping-Atlas
 
 # 2. Copy and configure environment variables
 cp .env.example .env
+# Edit .env — at minimum set secure values for POSTGRES_PASSWORD and API_KEYS
 
-# 3. Place your GeoLite2-City.mmdb inside backend/data/
-cp /path/to/GeoLite2-City.mmdb backend/data/
+# 3. Place your GeoLite2-City.mmdb at the backend root
+cp /path/to/GeoLite2-City.mmdb backend/GeoLite2-City.mmdb
 
 # 4. Start all services
 docker compose up --build
 
-# 5. Open the application
-open http://localhost:3000
+# 5. Run database migrations (first run only)
+docker compose run --rm api alembic upgrade head
+
+# 6. Open the application
+open http://localhost
 ```
 
-The API will be available at `http://localhost:8000` and the auto-generated docs at `http://localhost:8000/docs`.
+The API is available at `http://localhost/api` and interactive docs at `http://localhost/api/docs`.
+
+During development, direct ports are also exposed via `docker-compose.override.yml`:
+- Frontend: `http://localhost:3000`
+- API: `http://localhost:8000`
 
 ---
 
 ## Configuration
 
-All runtime configuration is handled via environment variables. Copy `.env.example` to `.env` and adjust as needed.
+All runtime configuration is handled via environment variables. Copy `.env.example` to `.env` and adjust as needed. See `.env.example` for descriptions of every variable.
 
 | Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | `postgresql://...` | PostgreSQL connection string |
-| `PROBE_INTERVAL_SECONDS` | `300` | How often the scheduler runs probes |
-| `PROBE_TARGETS` | _(see .env.example)_ | Comma-separated list of target hostnames/IPs |
-| `LATENCY_ALERT_DELTA_MS` | `50` | Latency increase (ms) that triggers a suboptimal route alert |
-| `MAX_HOPS` | `30` | Maximum TTL for traceroute probes |
-| `GEOIP_DB_PATH` | `backend/data/GeoLite2-City.mmdb` | Path to the MaxMind database |
+| `POSTGRES_USER` | `pingatlas` | PostgreSQL username |
+| `POSTGRES_PASSWORD` | `changeme` | PostgreSQL password — change in production |
+| `POSTGRES_DB` | `pingatlas` | PostgreSQL database name |
+| `PROBE_INTERVAL_SECONDS` | `300` | How often the scheduler runs probes (seconds) |
+| `PROBE_TARGETS` | `8.8.8.8,1.1.1.1,9.9.9.9` | Comma-separated initial probe targets |
+| `LATENCY_ALERT_DELTA_MS` | `50` | RTT increase (ms) above rolling average that triggers an alert |
+| `MAX_HOPS` | `30` | Maximum TTL for traceroute |
+| `API_KEYS` | _(empty = disabled)_ | Comma-separated API keys for `POST /probe`. Leave empty to disable auth |
+| `ALERT_WEBHOOK_URL` | _(unset)_ | Optional URL to POST alert payloads to on latency spikes |
+| `GEOIP_DB_PATH` | `/app/GeoLite2-City.mmdb` | Path to GeoLite2 database inside the API container |
 
 ---
 
 ## API reference
 
-Interactive documentation (Swagger UI) is auto-generated by FastAPI and available at `/docs` when the server is running. A brief summary:
+Interactive Swagger UI is auto-generated by FastAPI and available at `http://localhost/api/docs`.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/probe` | Trigger an on-demand probe to a given target |
-| `GET` | `/results` | List historical probe results (supports pagination and filtering) |
-| `GET` | `/routes/{target}` | Return full traceroute polyline for a target |
-| `GET` | `/targets` | List configured probe targets |
-| `WS` | `/live` | WebSocket stream of real-time probe results |
-
-Full API documentation: [Wiki — API Reference](../../wiki/API-Reference)
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/probe` | API key | Trigger an on-demand traceroute probe |
+| `GET` | `/results` | — | List historical probe results (paginated) |
+| `GET` | `/routes/{target_id}` | — | Latest traceroute polyline as `[[lat,lon],…]` |
+| `GET` | `/targets` | — | List all probe targets |
+| `GET` | `/alerts` | — | List latency spike alerts |
+| `WS` | `/live` | — | Real-time hop stream during active probes |
+| `GET` | `/health` | — | Liveness check |
 
 ---
 
 ## Project structure
 
 ```
-pingatlas/
+Ping-Atlas/
 ├── backend/
 │   ├── app/
-│   │   ├── api/          # FastAPI routers
-│   │   ├── core/         # Config, scheduler, startup
-│   │   ├── db/           # SQLAlchemy models and migrations
+│   │   ├── api/          # FastAPI routers (probes, alerts, ws)
+│   │   ├── db/           # SQLAlchemy models + Alembic migrations
 │   │   ├── probe/        # Scapy ICMP engine + GeoIP wrapper
-│   │   └── main.py
-│   ├── data/             # GeoLite2 .mmdb (git-ignored)
+│   │   ├── anomaly.py    # Latency spike detection + webhook
+│   │   ├── auth.py       # API key dependency
+│   │   ├── limiter.py    # slowapi rate limiter
+│   │   ├── scheduler.py  # APScheduler periodic probes
+│   │   └── main.py       # FastAPI app + lifespan
 │   ├── tests/
+│   ├── GeoLite2-City.mmdb  # (git-ignored — download separately)
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── components/   # MapView, LatencyChart, Sidebar
-│   │   ├── hooks/        # useProbe, useWebSocket
+│   │   ├── components/   # MapView, Sidebar, LatencyChart, ProbeTimeline
+│   │   ├── hooks/        # useProbeResults, useWebSocket, useRoute, useAlerts
 │   │   └── App.tsx
+│   ├── e2e/              # Playwright E2E tests
 │   └── Dockerfile
+├── nginx/
+│   └── nginx.conf        # Reverse proxy config
+├── wiki/
+│   ├── Architecture-and-Stack.md
+│   └── Roadmap.md
 ├── docker-compose.yml
+├── docker-compose.override.yml   # Dev: exposes ports 3000 + 8000 directly
 ├── .env.example
+├── CONTRIBUTING.md
 └── README.md
 ```
 
@@ -178,10 +209,18 @@ pingatlas/
 
 ## Contributing
 
-1. Fork the repository and create a feature branch: `git checkout -b feat/your-feature`
-2. Follow the coding standards described in [CONTRIBUTING.md](CONTRIBUTING.md)
-3. Run the test suite before opening a PR: `docker compose run --rm backend pytest`
-4. Open a Pull Request against `main` — the PR template will guide you
+See [CONTRIBUTING.md](CONTRIBUTING.md) for coding standards, branch naming, and the PR process.
+
+```bash
+# Run backend tests
+docker compose run --rm api pytest tests/ -v --cov=app/probe --cov-report=term-missing
+
+# Run E2E tests (stack must be running)
+cd frontend && npm run test:e2e
+
+# Typecheck frontend
+cd frontend && npx tsc --noEmit
+```
 
 ---
 
