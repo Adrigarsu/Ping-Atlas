@@ -11,6 +11,8 @@ class HopMessage(BaseModel):
     rtt_ms: float | None
     lat: float | None
     lon: float | None
+    country: str | None = None
+    city: str | None = None
 
 
 class ConnectionManager:
