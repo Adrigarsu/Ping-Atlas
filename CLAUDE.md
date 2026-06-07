@@ -44,19 +44,22 @@
 - backend/app/db/   — SQLAlchemy models + Alembic migrations
 - backend/app/db/session.py — async engine + AsyncSessionLocal
 - backend/app/db/migrations/ — Alembic env + versioned migration scripts
-- frontend/src/components/ — MapView, LatencyChart, Sidebar
-- frontend/src/components/MapView.tsx — CircleMarkers (RTT colour: green<50ms, yellow<150ms, red≥150ms), Polylines per probe, Popups, real-time WS updates
-- frontend/src/components/LatencyChart.tsx — Recharts LineChart, RTT over time, empty state when no probes
-- frontend/src/components/Sidebar.tsx — target list (GET /api/targets), selected target summary (min/avg/max RTT), on-demand probe button (POST /probe), LatencyChart for selected target
-- frontend/src/components/MapView.tsx — accepts selectedTargetId + refreshSignal; shows static route polyline (amber dashed) from useRoute, plus live WS CircleMarkers/Polylines
+- frontend/src/components/MapView.tsx — CircleMarkers + Polylines from live WS; static route from useRoute (amber dashed) or selected probe hops (purple dashed); deduplicates identical coords (Docker NAT workaround); shows "No location data" banner when target IP is not in GeoIP DB
+- frontend/src/components/LatencyChart.tsx — Recharts LineChart, RTT over time, empty state when no probes; selectedProbeId prop highlights selected dot in amber
+- frontend/src/components/Sidebar.tsx — target list, RTT summary, on-demand probe button, LatencyChart (with selectedProbeId highlight), ProbeTimeline
+- frontend/src/components/ProbeTimeline.tsx — horizontally scrollable colored bars (1 per probe, oldest→newest); red dot + hover tooltip for alerts; click sets selectedProbe in App
 - frontend/src/hooks/useWebSocket.ts — connects to /live, filters hops with null lat/lon, returns HopMessage[]
-- frontend/src/hooks/useProbeResults.ts — fetches GET /api/results?target=..., re-fetches on refreshSignal change
+- frontend/src/hooks/useProbeResults.ts — fetches GET /api/results?target=..., re-fetches on refreshSignal change; ProbeResult includes hops: HopOut[] for map route computation
 - frontend/src/hooks/useTargets.ts — fetches GET /api/targets, returns Target[]
 - frontend/src/hooks/useRoute.ts — fetches GET /api/routes/{targetId}, returns [lat,lon][] for selected target
+- frontend/src/hooks/useAlerts.ts — fetches GET /api/alerts?target_id=..., returns Alert[]; used by Sidebar to pass alert markers to ProbeTimeline
 - Vite proxy: /api → http://api:8000, /live → ws://api:8000 (configured in vite.config.ts)
-- App.tsx: lifts selectedTarget (Target | null) state; passes selectedTargetId+refreshSignal to MapView, onTargetChange+refreshSignal to Sidebar
+- App.tsx: lifts selectedTarget (Target | null) + selectedProbe (ProbeResult | null) state; passes selectedTargetId+refreshSignal+selectedProbe to MapView, onTargetChange+onProbeSelect+refreshSignal to Sidebar
 - GET /api/targets endpoint added to probes.py; TargetOut schema in schemas.py (includes enabled field)
 - PROBE_INTERVAL_SECONDS env var controls scheduler cadence (default 300 s); scheduler re-queries enabled targets on every tick
+- API_KEYS env var must be mapped in docker-compose.yml environment block (comma-separated keys for POST /probe auth)
+- GEOIP_DB_PATH must be /app/GeoLite2-City.mmdb (volume mount is ./backend:/app; file lives at backend/GeoLite2-City.mmdb)
+- Some public IPs (Cloudflare 1.1.1.1, Quad9 9.9.9.9) opt out of GeoIP databases — resolve() returns all-None, MapView shows "No location data" banner
 
 ## Data model
 - `targets` — hosts to probe (id UUID PK, host, label, enabled bool default TRUE, created_at)

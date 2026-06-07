@@ -11,6 +11,7 @@ import type { ProbeResult } from '../hooks/useProbeResults'
 
 interface Props {
   results: ProbeResult[]
+  selectedProbeId?: string | null
 }
 
 function formatTime(iso: string): string {
@@ -18,7 +19,7 @@ function formatTime(iso: string): string {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
-export default function LatencyChart({ results }: Props) {
+export default function LatencyChart({ results, selectedProbeId }: Props) {
   if (results.length === 0) {
     return (
       <div style={{ padding: '1rem', color: '#9ca3af', textAlign: 'center' }}>
@@ -30,9 +31,26 @@ export default function LatencyChart({ results }: Props) {
   const data = [...results]
     .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
     .map((r) => ({
+      id: r.id,
       time: formatTime(r.started_at),
       rtt: r.rtt_ms !== null ? Math.round(r.rtt_ms * 10) / 10 : null,
     }))
+
+  const renderDot = (props: Record<string, unknown>) => {
+    const { cx, cy, payload } = props as { cx: number; cy: number; payload: { id: string } }
+    const isSelected = payload.id === selectedProbeId
+    return (
+      <circle
+        key={payload.id}
+        cx={cx}
+        cy={cy}
+        r={isSelected ? 6 : 3}
+        fill={isSelected ? '#f59e0b' : '#6366f1'}
+        stroke={isSelected ? '#fff' : 'none'}
+        strokeWidth={isSelected ? 2 : 0}
+      />
+    )
+  }
 
   return (
     <ResponsiveContainer width="100%" height={220}>
@@ -50,7 +68,7 @@ export default function LatencyChart({ results }: Props) {
           dataKey="rtt"
           stroke="#6366f1"
           strokeWidth={2}
-          dot={{ r: 3 }}
+          dot={renderDot}
           connectNulls={false}
         />
       </LineChart>

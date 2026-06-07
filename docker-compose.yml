@@ -25,7 +25,8 @@ services:
       PROBE_TARGETS: ${PROBE_TARGETS:-8.8.8.8,1.1.1.1}
       LATENCY_ALERT_DELTA_MS: ${LATENCY_ALERT_DELTA_MS:-50}
       MAX_HOPS: ${MAX_HOPS:-30}
-      GEOIP_DB_PATH: /app/data/GeoLite2-City.mmdb
+      API_KEYS: ${API_KEYS:-}
+      GEOIP_DB_PATH: /app/GeoLite2-City.mmdb
     volumes:
       - ./backend:/app
     cap_add:

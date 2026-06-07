@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react'
 
+export interface HopOut {
+  ttl: number
+  ip: string | null
+  rtt_ms: number | null
+  latitude: number | null
+  longitude: number | null
+  city: string | null
+  country: string | null
+}
+
 export interface ProbeResult {
   id: string
   target_id: string
@@ -7,6 +17,7 @@ export interface ProbeResult {
   finished_at: string | null
   rtt_ms: number | null
   packet_loss: number | null
+  hops: HopOut[]
 }
 
 export function useProbeResults(target: string | null, refreshSignal: number): ProbeResult[] {
