@@ -36,6 +36,7 @@
 - backend/app/api/ws.py — ConnectionManager + HopMessage schema + WebSocket /live endpoint
 - backend/app/scheduler.py — AsyncIOScheduler; _probe_all_enabled() queries enabled targets each run; start()/stop() called from lifespan
 - backend/app/anomaly.py — check_and_alert(session, target_id, probe_id, current_rtt): computes rolling avg of last 10 probes, creates Alert if delta > LATENCY_ALERT_DELTA_MS; optional POST to ALERT_WEBHOOK_URL
+- backend/app/limiter.py — slowapi Limiter(key_func=get_remote_address, headers_enabled=True); POST /probe decorated with @limiter.limit("10/minute"); scheduler bypasses this (calls _execute_probe directly)
 - GET /routes/{target_id} returns latest traceroute as [[lat,lon],...] excluding null-coord hops; 404 if target missing
 - WS /live broadcasts HopMessage per hop as traceroute runs; WebSocketDisconnect handled gracefully
 - traceroute_stream() — async generator wrapping each sr1 call in run_in_executor for real-time yielding

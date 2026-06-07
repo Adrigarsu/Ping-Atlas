@@ -2,7 +2,7 @@ import socket
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,6 +12,7 @@ from app.api.schemas import PaginatedProbes, ProbeCreated, ProbeOut, ProbeReques
 from app.api.ws import HopMessage, manager
 from app.db.models import Hop, Probe, Target
 from app.db.session import AsyncSessionLocal
+from app.limiter import limiter
 from app.probe import geoip
 from app.probe.traceroute import traceroute_stream
 
@@ -101,7 +102,8 @@ async def _execute_probe(host: str) -> uuid.UUID:
 
 
 @router.post("/probe", response_model=ProbeCreated, status_code=202)
-async def run_probe(body: ProbeRequest) -> ProbeCreated:
+@limiter.limit("10/minute")
+async def run_probe(request: Request, response: Response, body: ProbeRequest) -> ProbeCreated:
     try:
         probe_id = await _execute_probe(body.target)
     except ValueError as exc:
